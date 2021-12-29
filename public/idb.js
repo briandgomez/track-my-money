@@ -32,3 +32,43 @@ function saveRecord(record) {
     //Add record to table
     transactionObjectStore.add(record);
 };
+
+//Function to upload saved data
+function uploadTransaction() {
+    const transaction = db.transaction(['new_transaction'], 'readwrite');
+    const transactionObjectStore = transaction.objectStore('new_transaction');
+    //Retrieve all information from object store
+    const allStoreData = transactionObjectStore.getAll();
+
+    //If 'allStoreData' is retrieved successfully run this function
+    allStoreData.onsuccess = function () {
+        // if data exists in indexedDb's store send it to api server
+        if (allStoreData.result.length > 0) {
+            fetch('/api/transaction', {
+                method: 'POST',
+                body: JSON.stringify(allStoreData.result),
+                headers: {
+                    Accept: 'application/json, text/plain, */*',
+                    'Content-Type': 'application/json'
+                }
+            })
+                .then(response => response.json())
+                .then(serverResponse => {
+                    if (serverResponse.message) {
+                        throw new Error(serverResponse);
+                    }
+                    const transaction = db.transaction(['new_transaction'], 'readwrite');
+                    const transactionObjectStore = transaction.objectStore('new_transaction');
+                    transactionObjectStore.clear();
+
+                    alert('Transactions successfully uploaded')
+                })
+                .catch(err => {
+                    console.log(err);
+                });
+        }
+    }
+}
+
+//Listen for app to come back online
+window.addEventListener('online', uploadTransaction);
